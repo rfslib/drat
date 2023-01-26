@@ -14,7 +14,7 @@ import platform
 import os
 import shutil
 
-
+# boo
 
 source_dir = r'S:\\' # source for icons and folders
 source_dir = r'C:\Users\\rfsl\\rfslib\\drat\\source\\'
