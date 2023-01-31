@@ -2,78 +2,71 @@
 file: drat.py
 author: rfslib
 purpose: reset equipment computer desktops in the RFSL
+
+    1. get the name of the system to be reset
+    2. delete all files (including shortcuts) on the patron desktop
+    2a. delete all folders not matching ones in the template
+    3. copy the correct set of files to the patron desktop
+    4. if requested, delete all files in all folders on the desktop
+    5. TODO load the registry with default values for the patron user
+    6. log what was done
 '''
-
-# get the name of the system to be reset
-
-# delete all files (including shortcuts) on the patron desktop
-
-# copy the correct set of files to the patron desktop
 
 import platform
 import os
 import shutil
 
-# boo
+from DeskItem import DeskItem
 
-source_dir = r'S:\\' # source for icons and folders
-source_dir = r'C:\Users\\rfsl\\rfslib\\drat\\source\\'
-base_dir = r'C:\\Users\\Patron\\' # user directory
-base_dir = r'C:\\Users\\rfsl\\'
-# specified as k_dir instead: work_dir = r'Desktop' # usual location of icons and folders
-k_icons = 'icons'
-k_folders = 'folders'
-k_dir = 'dir'
-
-machines = {
-    'serve': {
-        k_icons: 'serveicons',
-        k_folders: 'servefolders',
-        k_dir: 'Desktop'
-    },
-    'FS-50P7DS2s': {
-        k_icons: 'testicons1',
-        k_folders: 'testfolders1',
-        k_dir: 'Desktop'
-    },
-    'ROB-STAFF-04': {
-        k_icons: 'testicons2',
-        k_folders: 'testfolders2',
-        k_dir: 'Desktop'
-    },
-    'unknown': {
-        k_icons: '',
-        k_folders: '',
-        k_dir: ''
-    }
-}
+target_dir = r'C:\\Users\\rfsl\\Desktop'
+source_dir = r'template\\'
 
 
-# get this machine's information
+def scanDir(dir):
+    items = {}
+    for i in os.scandir(dir):
+        if i.is_file() or i.is_symlink():
+            item = DeskItem(i.name, i.path, "f")
+        elif i.is_dir():
+            item = DeskItem(i.name, i.path, "d")
+        items[i.name] = item 
+    return(items)
+
+# 1. get the name of the system to be reset
 hostname = platform.node()
 platform = print (platform.platform())
-hostinfo = machines['unknown']
-if hostname in machines:
-    hostinfo = machines[hostname]
+print(f'This machine is named {hostname}.')
 
-print(f'This machine is named {hostname}.\n Icons come from {hostinfo[k_icons]}.\n Folders to create are in {hostinfo[k_folders]}')
+# gather the template directory items
+full_source_dir = os.path.abspath(source_dir)
+expected_items = scanDir(full_source_dir)
 
-# delete everything in the target directory except the recycle bin
-target_dir = os.path.join(base_dir, hostinfo[k_dir])
-print(f'Target dir: {target_dir}')
-for i in os.scandir(target_dir):
-    if i.is_file() or i.is_symlink():
-        if i.name == 'desktop.ini':
-            print('skipping desktop.ini')
-        else:
-            print(f'File: {i.name}')
-    elif i.is_dir():
-        print(f'Dir: {i.name}')
+# gather the current desktop (directory) items
+desktop_items = scanDir(target_dir)
+
+# 2. delete all files (including shortcuts) on the patron desktop
+# 2a. delete all folders not matching ones in the template
+#  except the desktop.ini
+
+for fn in desktop_items:
+    if fn == 'desktop.ini':
+        pass
+    elif desktop_items[fn].type == 'f':
+        print(f'{fn} file to be deleted')
+        os.unlink(desktop_items[fn].path)
+    elif desktop_items[fn].type == 'd' and fn not in expected_items:
+        print(f'{fn} dir to be deleted')
+        shutil.rmtree(desktop_items[fn].path)
     else:
-        print(f'huh? {i.name}')
+        print(f'{fn} ok')
 
+# 3. copy the correct set of files to the patron desktop
+for fn in expected_items:
+    if expected_items[fn].type == 'f':
+        shutil.copy(expected_items[fn].path, target_dir)
+    elif expected_items[fn].type == 'd':
+        if fn not in desktop_items:
+            shutil.copy(expected_items[fn].path, target_dir)
 
-
-# copy from the template directory to the target directory
 
 # reset registry stuff
