@@ -3,8 +3,9 @@ file: drat.py
 author: rfslib
 purpose: reset equipment computer desktops in the RFSL
 
-    1. get the name of the system to be reset
-    2. delete all files (including shortcuts) on the patron desktop
+    0. verify that this is running as the patron account
+    1. show some system information
+    2. delete all files (including shortcuts) on the patron desktop (except the desktop.ini)
     2a. delete all folders not matching ones in the template
     3. copy the correct set of files to the patron desktop
     4. if requested, delete all files in all folders on the desktop
@@ -19,10 +20,11 @@ import shutil
 
 from DeskItem import DeskItem
 
-target_dir = r'C:/Users/rfsl/Desktop/'
+user = os.getlogin()
+target_user = 'rfsl' # 'Patron'
+target_dir = f'C:/Users/{user}/Desktop/'
 source_dir = r'C:/Users/rfsl/rfslib/drat/template/'
 #source_dir = r'C:/Program Files/fsc/drat/template/'
-
 
 def scanDir(dir):
     items = {}
@@ -34,49 +36,59 @@ def scanDir(dir):
         items[i.name] = item 
     return(items)
 
-# 1. get the name of the system to be reset
-#hostname = platform.node()
-#platform = print (platform.platform())
-print(f'This is "{platform.node()}" running {platform.platform()}')
+def main():
+    # 0. verify that this is running as the patron account
+    if user.lower() != target_user.lower():
+        print('This is for the Patron accout only')
+        exit()
 
-# gather the template directory items
-full_source_dir = os.path.abspath(source_dir)
-expected_items = scanDir(full_source_dir)
+    # 1. show some system information
+    print(f'This is "{platform.node()}" running {platform.system()} {platform.release()} for {os.getlogin()}')
 
-# gather the current desktop (directory) items
-desktop_items = scanDir(target_dir)
+    # gather the template directory items
+    full_source_dir = os.path.abspath(source_dir)
+    expected_items = scanDir(full_source_dir)
 
-# 2. delete all files (including shortcuts) on the patron desktop
-# 2a. delete all folders not matching ones in the template
-#  except the desktop.ini
+    # gather the current desktop (directory) items
+    desktop_items = scanDir(target_dir)
 
-print('Cleaning up the desktop')
-for fn in desktop_items:
-    if fn == 'desktop.ini':
-        pass
-    elif desktop_items[fn].type == 'f':
-        print(f'  {fn} - file to be deleted')
-        os.chmod(desktop_items[fn].path, stat.S_IWRITE) # remove read-only
-        os.remove(desktop_items[fn].path)
-    elif desktop_items[fn].type == 'd' and fn not in expected_items:
-        print(f'  {fn} - folder to be deleted')
-        os.chmod(desktop_items[fn].path, stat.S_IWRITE) # remove read-only
-        shutil.rmtree(desktop_items[fn].path)
-    else:
-        print(f'  {fn} ok')
+    # 2. delete all files (including shortcuts) on the patron desktop (except the desktop.ini)
+    # 2a. delete all folders not matching ones in the template
+    print('Cleaning up the desktop')
+    for fn in desktop_items:
+        target = desktop_items[fn].path
+        if fn == 'desktop.ini':
+            pass
+        elif desktop_items[fn].type == 'f':
+            print(f'  {fn} - file to be deleted')
+            os.chmod(target, stat.S_IWRITE) # remove read-only
+            os.remove(target)
+        elif desktop_items[fn].type == 'd':
+            os.system(f'attrib -h "{target}"') # unhide just in case
+            if fn not in expected_items:
+                print(f'  {fn} - folder to be deleted')
+                os.chmod(target, stat.S_IWRITE) # remove read-only
+                shutil.rmtree(target)
+        else:
+            print(f'  {fn} ok')
 
-# 3. copy the correct set of files to the patron desktop
-print('Restoring the desktop')
-for fn in expected_items:
-    target = os.path.join(target_dir, fn)
-    if expected_items[fn].type == 'f':
-        print(f'  {fn} - file to be copied')
-        shutil.copy(expected_items[fn].path, target)
-    elif expected_items[fn].type == 'd':
-        os.system(f'attrib -h {target}')
-        if fn not in desktop_items:
-            print(f'  {fn} - folder to be copied')
-            shutil.copytree(expected_items[fn].path, target)
+    # 3. copy the correct set of files to the patron desktop
+    print('Restoring the desktop')
+    for fn in expected_items:
+        target = os.path.join(target_dir, fn)
+        if expected_items[fn].type == 'f':
+            print(f'  {fn} - file to be copied')
+            shutil.copy(expected_items[fn].path, target)
+            os.chmod(target, stat.S_IREAD) # set read-only
+        elif expected_items[fn].type == 'd':
+            if fn not in desktop_items:
+                print(f'  {fn} - folder to be copied')
+                shutil.copytree(expected_items[fn].path, target)
+                os.chmod(target, stat.S_IREAD) # set read-only
 
 
-# reset registry stuff
+    # reset registry stuff
+
+
+if __name__ == '__main__':
+    main()
