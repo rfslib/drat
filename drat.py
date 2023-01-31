@@ -18,8 +18,8 @@ import shutil
 
 from DeskItem import DeskItem
 
-target_dir = r'C:\\Users\\rfsl\\Desktop'
-source_dir = r'template\\'
+target_dir = r'C:/Users/rfsl/Desktop/'
+source_dir = r'template/'
 
 
 def scanDir(dir):
@@ -53,7 +53,7 @@ for fn in desktop_items:
         pass
     elif desktop_items[fn].type == 'f':
         print(f'{fn} file to be deleted')
-        os.unlink(desktop_items[fn].path)
+        os.remove(desktop_items[fn].path)
     elif desktop_items[fn].type == 'd' and fn not in expected_items:
         print(f'{fn} dir to be deleted')
         shutil.rmtree(desktop_items[fn].path)
@@ -62,11 +62,12 @@ for fn in desktop_items:
 
 # 3. copy the correct set of files to the patron desktop
 for fn in expected_items:
+    target = os.path.join(target_dir, fn)
     if expected_items[fn].type == 'f':
-        shutil.copy(expected_items[fn].path, target_dir)
+        shutil.copy(expected_items[fn].path, target)
     elif expected_items[fn].type == 'd':
         if fn not in desktop_items:
-            shutil.copy(expected_items[fn].path, target_dir)
+            shutil.copytree(expected_items[fn].path, target)
 
 
 # reset registry stuff
