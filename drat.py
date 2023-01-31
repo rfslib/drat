@@ -21,10 +21,10 @@ import shutil
 from DeskItem import DeskItem
 
 user = os.getlogin()
-target_user = 'rfsl' # 'Patron'
+target_user = 'Patron' # 'Patron'
 target_dir = f'C:/Users/{user}/Desktop/'
-source_dir = r'C:/Users/rfsl/rfslib/drat/template/'
-#source_dir = r'C:/Program Files/fsc/drat/template/'
+#source_dir = r'C:/Users/rfsl/rfslib/drat/template/'
+source_dir = r'C:/Program Files/fsc/drat/template/'
 
 def scanDir(dir):
     items = {}
@@ -39,8 +39,8 @@ def scanDir(dir):
 def main():
     # 0. verify that this is running as the patron account
     if user.lower() != target_user.lower():
-        print('This is for the Patron accout only')
-        exit()
+        print('This is for the Patron account only')
+        return()
 
     # 1. show some system information
     print(f'This is "{platform.node()}" running {platform.system()} {platform.release()} for {os.getlogin()}')
@@ -89,6 +89,11 @@ def main():
 
     # reset registry stuff
 
+    # all done
+    return()
+    
+
 
 if __name__ == '__main__':
     main()
+    input('Press ENTER when done . . . . . ')
