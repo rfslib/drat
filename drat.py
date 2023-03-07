@@ -3,8 +3,8 @@ file: drat.py
 author: rfslib
 purpose: reset equipment computer desktops in the RFSL
 
-    0. verify that this is running as the patron account
-    1. show some system information
+    0. show some system information
+    1. verify that this is running as the patron account
     2. delete all files (including shortcuts) on the patron desktop (except the desktop.ini)
     2a. delete all folders not matching ones in the template
     3. copy the correct set of files to the patron desktop
@@ -19,81 +19,113 @@ import stat
 import shutil
 
 from DeskItem import DeskItem
+from send2trash import send2trash
 
-user = os.getlogin()
-target_user = 'Patron' # 'Patron'
-target_dir = f'C:/Users/{user}/Desktop/'
-#source_dir = r'C:/Users/rfsl/rfslib/drat/template/'
-source_dir = r'C:/Program Files/fsc/drat/template/'
+debug = True
 
-def scanDir(dir):
-    items = {}
+target_base = 'C:\\Users\\'
+#source_dir = 'C:\\FSC\\drat\\template\\'
+source_dir = 'C:\\Users\\rfsl\\rfslib\\drat\\template\\'
+
+def scanDir(dir, type=''):
+    items = []
     for i in os.scandir(dir):
-        if i.is_file() or i.is_symlink():
+        if (i.is_file() or i.is_symlink()) and (type=='' or type=='f'):
             item = DeskItem(i.name, i.path, "f")
-        elif i.is_dir():
+            items.append(item)
+        elif i.is_dir() and (type == '' or type == 'd'):
             item = DeskItem(i.name, i.path, "d")
-        items[i.name] = item 
+            items.append(item)
     return(items)
 
 def main():
-    # 0. verify that this is running as the patron account
-    if user.lower() != target_user.lower():
-        print('This is for the Patron account only')
+
+    user = os.getlogin() # get the user running this program
+
+    # 0. show some system information
+    print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user {user}')
+
+    # 1. verify that this is running as a configured account
+    template_dirs = scanDir(source_dir, 'd') # get a list of the user templates
+    target_foo = ''
+    for item in template_dirs:
+        if item.filename == user:
+            target_foo = os.path.join(target_base, user)
+            source_foo = os.path.join(source_dir, user)
+            break
+    if target_foo == '':
+        print(f'This is not set up for the "{user}" user. Aborting...')
         return()
+    else:
+        if debug: print(f'Ok, processing stuff in {target_foo}')
+        if debug: print(f'    getting stuff from {source_foo}')
 
-    # 1. show some system information
-    print(f'This is "{platform.node()}" running {platform.system()} {platform.release()} for {os.getlogin()}')
 
-    # gather the template directory items
-    full_source_dir = os.path.abspath(source_dir)
-    expected_items = scanDir(full_source_dir)
+    # gather the template directory items (directories to be cleaned up, usually Desktop)
+    dirs_to_clean = scanDir(source_foo, 'd')
 
-    # gather the current desktop (directory) items
-    desktop_items = scanDir(target_dir)
+    for item in dirs_to_clean:
+        target_dir = os.path.join(target_foo, item.filename)
+        clean_dir(item.path, target_dir)
 
-    # 2. delete all files (including shortcuts) on the patron desktop (except the desktop.ini)
+    # TODO: registry
+
+    return
+
+def clean_dir(source_dir, target_dir):
+    if debug: print(f'Cleaning {target_dir} from {source_dir}')
+
+    # gather the current target directory items
+    target_items = scanDir(target_dir)
+    target_filenames = []
+    for item in target_items:
+        target_filenames.append(item.filename)
+    expected_items = scanDir(source_dir)
+    expected_filenames = []
+    for item in expected_items:
+        expected_filenames.append(item.filename)
+
+    # 2. delete all files (including shortcuts) in the current directory (except the desktop.ini)
     # 2a. delete all folders not matching ones in the template
-    print('Cleaning up the desktop')
-    for fn in desktop_items:
-        target = desktop_items[fn].path
-        if fn == 'desktop.ini':
+    print(f'Clearing {target_dir}')
+    for fn in target_items:
+        #target = target_items[fn].path
+        if fn.filename == 'desktop.ini':
+            print(f'  {fn.filename} - skipped')
             pass
-        elif desktop_items[fn].type == 'f':
-            print(f'  {fn} - file to be deleted')
-            os.chmod(target, stat.S_IWRITE) # remove read-only
-            os.remove(target)
-        elif desktop_items[fn].type == 'd':
-            os.system(f'attrib -h "{target}"') # unhide just in case
-            if fn not in expected_items:
-                print(f'  {fn} - folder to be deleted')
-                os.chmod(target, stat.S_IWRITE) # remove read-only
-                shutil.rmtree(target)
+        elif fn.type == 'f':
+            print(f'  {fn.filename} - file to be deleted')
+            os.chmod(fn.path, stat.S_IWRITE) # remove read-only
+            send2trash(fn.path) ##** os.remove(target)
+        elif fn.type == 'd':
+            os.system(f'attrib -h "{fn.path}"') # unhide just in case
+            if fn.filename not in expected_filenames:
+                print(f'  {fn.filename} - folder to be deleted')
+                os.chmod(fn.path, stat.S_IWRITE) # remove read-only
+                send2trash(fn.path) ##**shutil.rmtree(target)
         else:
-            print(f'  {fn} ok')
+            print(f'  {fn.filename} ok')
 
     # 3. copy the correct set of files to the patron desktop
-    print('Restoring the desktop')
+    print(f'Restoring {target_dir}')
     for fn in expected_items:
-        target = os.path.join(target_dir, fn)
-        if expected_items[fn].type == 'f':
-            print(f'  {fn} - file to be copied')
-            shutil.copy(expected_items[fn].path, target)
+        target = os.path.join(target_dir, fn.filename)
+        if fn.type == 'f':
+            print(f'  {fn.filename} - file to be copied')
+            shutil.copy(fn.path, target)
             os.chmod(target, stat.S_IREAD) # set read-only
-        elif expected_items[fn].type == 'd':
-            if fn not in desktop_items:
-                print(f'  {fn} - folder to be copied')
-                shutil.copytree(expected_items[fn].path, target)
+        elif fn.type == 'd':
+            if fn.filename not in target_filenames:
+                print(f'  {fn.filename} - folder to be copied')
+                shutil.copytree(fn.path, target)
                 os.chmod(target, stat.S_IREAD) # set read-only
 
-
-    # reset registry stuff
-
-    # all done
     return()
     
 
 
 if __name__ == '__main__':
     main()
+    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!')
     input('Press ENTER when done . . . . . ')
+    print()

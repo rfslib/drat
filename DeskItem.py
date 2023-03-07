@@ -6,7 +6,8 @@ from dataclasses import dataclass
 
 @dataclass
 class DeskItem:
-    filename: str
-    path: str
-    type: str # f=file or symlink, d=directory
+    def __init__(self, filename, path, type):
+        self.filename = filename
+        self.path = path
+        self.type = type # f=file, d=dir
 
