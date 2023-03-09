@@ -24,8 +24,8 @@ from send2trash import send2trash
 debug = True
 
 target_base = 'C:\\Users\\'
-#source_dir = 'C:\\FSC\\drat\\template\\'
-source_dir = 'C:\\Users\\rfsl\\rfslib\\drat\\template\\'
+source_dir = 'C:\\FSC\\drat\\template\\'
+#source_dir = 'C:\\Users\\rfsl\\rfslib\\drat\\template\\'
 
 def scanDir(dir, type=''):
     items = []
@@ -40,10 +40,10 @@ def scanDir(dir, type=''):
 
 def main():
 
-    user = os.getlogin() # get the user running this program
+    user = os.getlogin() # get the current username
 
     # 0. show some system information
-    print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user {user}')
+    print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{user}"')
 
     # 1. verify that this is running as a configured account
     template_dirs = scanDir(source_dir, 'd') # get a list of the user templates
@@ -54,7 +54,7 @@ def main():
             source_foo = os.path.join(source_dir, user)
             break
     if target_foo == '':
-        print(f'This is not set up for the "{user}" user. Aborting...')
+        print(f'A template does not exist for the "{user}" user. Aborting...')
         return()
     else:
         if debug: print(f'Ok, processing stuff in {target_foo}')
@@ -67,6 +67,8 @@ def main():
     for item in dirs_to_clean:
         target_dir = os.path.join(target_foo, item.filename)
         clean_dir(item.path, target_dir)
+
+    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!')
 
     # TODO: registry
 
@@ -126,6 +128,5 @@ def clean_dir(source_dir, target_dir):
 
 if __name__ == '__main__':
     main()
-    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!')
     input('Press ENTER when done . . . . . ')
     print()
