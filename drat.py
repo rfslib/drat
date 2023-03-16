@@ -9,8 +9,10 @@ purpose: reset equipment computer desktops in the RFSL
     2a. delete all folders not matching ones in the template
     3. copy the correct set of files to the patron desktop
     4. if requested, delete all files in all folders on the desktop
-    5. TODO load the registry with default values for the patron user
-    6. log what was done
+    5. TODO load the registry with default values for the apps
+    6. TODO recursively clear directories
+    7. TODO recursively copy directories (already done?)
+    z. log what was done
 '''
 
 import platform
