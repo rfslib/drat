@@ -17,17 +17,21 @@ import platform
 import os
 import stat
 import shutil
+import sys
+import getopt
 
 from DeskItem import DeskItem
 from send2trash import send2trash
 
-debug = True
+debug = False
+verbose = False # -v on the command line to override
 
 target_base = 'C:\\Users\\'
 source_dir = 'C:\\FSC\\drat\\template\\'
 #source_dir = 'C:\\Users\\rfsl\\rfslib\\drat\\template\\'
 
 def scanDir(dir, type=''):
+    global verbose, debug
     items = []
     for i in os.scandir(dir):
         if (i.is_file() or i.is_symlink()) and (type=='' or type=='f'):
@@ -38,18 +42,33 @@ def scanDir(dir, type=''):
             items.append(item)
     return(items)
 
-def main():
+def main(argv):
+    global verbose, debug
 
+    # process command-line arguments
+    if debug: print('Number of arguments:', len(argv), 'arguments.')
+    if debug: print('Argument List:', str(argv))
+    opts, args = getopt.getopt(argv,"hv",[])
+    for opt, arg in opts:
+        if opt == '-h':
+            print ('drat.py [-v]')
+            sys.exit()
+        elif opt == "-v":
+            print('Setting Verbose mode')
+            verbose = True
+
+    # ----
+    if debug: print(f'verbosity: {verbose}')
     user = os.getlogin() # get the current username
 
     # 0. show some system information
-    print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{user}"')
+    print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{user}"\n')
 
     # 1. verify that this is running as a configured account
     template_dirs = scanDir(source_dir, 'd') # get a list of the user templates
     target_foo = ''
     for item in template_dirs:
-        if item.filename == user:
+        if item.filename.lower() == user.lower():
             target_foo = os.path.join(target_base, user)
             source_foo = os.path.join(source_dir, user)
             break
@@ -75,6 +94,7 @@ def main():
     return
 
 def clean_dir(source_dir, target_dir):
+    global verbose, debug
     if debug: print(f'Cleaning {target_dir} from {source_dir}')
 
     # gather the current target directory items
@@ -93,32 +113,35 @@ def clean_dir(source_dir, target_dir):
     for fn in target_items:
         #target = target_items[fn].path
         if fn.filename == 'desktop.ini':
-            print(f'  {fn.filename} - skipped')
+            if verbose: print(f'  {fn.filename} - skipped')
             pass
         elif fn.type == 'f':
-            print(f'  {fn.filename} - file to be deleted')
+            if verbose: print(f'  {fn.filename} - file to be deleted')
             os.chmod(fn.path, stat.S_IWRITE) # remove read-only
             send2trash(fn.path) ##** os.remove(target)
         elif fn.type == 'd':
             os.system(f'attrib -h "{fn.path}"') # unhide just in case
             if fn.filename not in expected_filenames:
-                print(f'  {fn.filename} - folder to be deleted')
+                if verbose: print(f'  {fn.filename} - folder to be deleted')
                 os.chmod(fn.path, stat.S_IWRITE) # remove read-only
                 send2trash(fn.path) ##**shutil.rmtree(target)
         else:
-            print(f'  {fn.filename} ok')
+            if verbose: print(f'  {fn.filename} ok')
 
     # 3. copy the correct set of files to the patron desktop
     print(f'Restoring {target_dir}')
     for fn in expected_items:
         target = os.path.join(target_dir, fn.filename)
-        if fn.type == 'f':
-            print(f'  {fn.filename} - file to be copied')
+        if fn.filename == 'desktop.ini':
+            if (verbose): print(f'  {fn.filename} - skipped')
+            pass
+        elif fn.type == 'f':
+            if verbose: print(f'  {fn.filename} - file to be copied')
             shutil.copy(fn.path, target)
             os.chmod(target, stat.S_IREAD) # set read-only
         elif fn.type == 'd':
             if fn.filename not in target_filenames:
-                print(f'  {fn.filename} - folder to be copied')
+                if verbose: print(f'  {fn.filename} - folder to be copied')
                 shutil.copytree(fn.path, target)
                 os.chmod(target, stat.S_IREAD) # set read-only
 
@@ -127,6 +150,9 @@ def clean_dir(source_dir, target_dir):
 
 
 if __name__ == '__main__':
-    main()
+    # go do the work
+    main(sys.argv[1:])
+
+    # give them the chance to empty the recycle bin
     input('Press ENTER when done . . . . . ')
     print()
