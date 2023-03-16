@@ -117,16 +117,13 @@ def clean_dir(source_dir, target_dir):
         if fn.filename == 'desktop.ini':
             if verbose: print(f'  {fn.filename} - skipped')
             pass
-        elif fn.type == 'f':
-            if verbose: print(f'  {fn.filename} - file to be deleted')
+        elif fn.type == 'f' or fn.type == 'd':
+            if verbose: 
+                if fn.type == 'f': print(f'  {fn.filename} - file to be deleted')
+                elif fn.type == 'd': print(f'  {fn.filename} - folder to be deleted')
+            os.system(f'attrib -h "{fn.path}"') # unhide just in case
             os.chmod(fn.path, stat.S_IWRITE) # remove read-only
             send2trash(fn.path) ##** os.remove(target)
-        elif fn.type == 'd':
-            os.system(f'attrib -h "{fn.path}"') # unhide just in case
-            if fn.filename not in expected_filenames:
-                if verbose: print(f'  {fn.filename} - folder to be deleted')
-                os.chmod(fn.path, stat.S_IWRITE) # remove read-only
-                send2trash(fn.path) ##**shutil.rmtree(target)
         else:
             if verbose: print(f'  {fn.filename} ok')
 
@@ -142,10 +139,9 @@ def clean_dir(source_dir, target_dir):
             shutil.copy(fn.path, target)
             os.chmod(target, stat.S_IREAD) # set read-only
         elif fn.type == 'd':
-            if fn.filename not in target_filenames:
-                if verbose: print(f'  {fn.filename} - folder to be copied')
-                shutil.copytree(fn.path, target)
-                os.chmod(target, stat.S_IREAD) # set read-only
+            if verbose: print(f'  {fn.filename} - folder to be copied')
+            shutil.copytree(fn.path, target)
+            os.chmod(target, stat.S_IREAD) # set read-only
 
     return()
     
