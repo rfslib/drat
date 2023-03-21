@@ -89,7 +89,8 @@ def main(argv):
         target_dir = os.path.join(target_foo, item.filename)
         clean_dir(item.path, target_dir)
 
-    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!')
+    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
+            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
 
     # TODO: registry
 
@@ -142,6 +143,8 @@ def clean_dir(source_dir, target_dir):
             if verbose: print(f'  {fn.filename} - folder to be copied')
             shutil.copytree(fn.path, target)
             os.chmod(target, stat.S_IREAD) # set read-only
+
+    print()
 
     return()
     
