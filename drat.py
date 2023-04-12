@@ -65,7 +65,10 @@ def main(argv):
     # clean each directory in the template: delete everything in it and copy back from the template
     for item in dirs_to_clean:
         target_dir = os.path.join(target_foo, item.filename)
-        reset_dir(item.path, target_dir)
+        if item.filename.lower() == 'appdata':
+            pass
+        else:
+            reset_dir(item.path, target_dir)
 
     # TODO: registry and AppData files
 
@@ -162,9 +165,6 @@ def reset_dir(source_dir, target_dir):
     for fn in target_items:
         #target = target_items[fn].path
         if fn.filename == 'desktop.ini':
-            if verbose: print(f'  {fn.filename} - skipped')
-            pass
-        elif fn.filename.lower() == 'appdata':
             if verbose: print(f'  {fn.filename} - skipped')
             pass
         elif fn.type == 'f' or fn.type == 'd':
