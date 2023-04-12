@@ -20,6 +20,7 @@ purpose: reset equipment computer desktops in the RFSL
 # https://medium.com/swlh/easy-steps-to-create-an-executable-in-python-using-pyinstaller-cc48393bcc64
 # 
 
+TODO: FIX APPDATA COPY
 
 import platform
 import os
@@ -60,15 +61,17 @@ def main(argv):
     if debug: print(f'    getting stuff from {source_foo}')
     
     # gather the template directory items (directories to be cleaned up)
-    dirs_to_clean = scanDir(source_foo, 'd')
+    template_dirs = scanDir(source_foo, 'd')
 
     # clean each directory in the template: delete everything in it and copy back from the template
-    for item in dirs_to_clean:
+    for item in template_dirs:
         target_dir = os.path.join(target_foo, item.filename)
         if item.filename.lower() == 'appdata':
-            pass
+            copy_dir(item.path, target_dir)
         else:
-            reset_dir(item.path, target_dir)
+            clear_dir(target_dir)
+            copy_dir(item.path, target_dir)
+            ##** reset_dir(item.path, target_dir)
 
     # TODO: registry and AppData files
 
@@ -126,8 +129,15 @@ def process_command_line(argv):
 
 # ---
 # copy items from one directory to another
-def copy_dir(expected_items, target_dir):
+def copy_dir(source_dir, target_dir):
+
     print(f'Restoring {target_dir}')
+
+    expected_items = scanDir(source_dir)
+    expected_filenames = []
+    for item in expected_items:
+        expected_filenames.append(item.filename)
+
     for fn in expected_items:
         target = os.path.join(target_dir, fn.filename)
         if fn.filename == 'desktop.ini':
@@ -142,22 +152,14 @@ def copy_dir(expected_items, target_dir):
             shutil.copytree(fn.path, target)
             os.chmod(target, stat.S_IREAD) # set read-only
 
-
 # ---
-# delete everything in the target dir, copy everything from the source dir to the target dir
-def reset_dir(source_dir, target_dir):
-    global verbose, debug
-    if debug: print(f'Cleaning {target_dir} from {source_dir}')
-
+# delete everythin in the target dir
+def clear_dir(target_dir):
     # gather the current target directory items
     target_items = scanDir(target_dir)
     target_filenames = []
     for item in target_items:
         target_filenames.append(item.filename)
-    expected_items = scanDir(source_dir)
-    expected_filenames = []
-    for item in expected_items:
-        expected_filenames.append(item.filename)
 
     # 2. delete all files (including shortcuts) in the current directory (except the desktop.ini)
     # 2a. delete all folders not matching ones in the template
@@ -177,8 +179,17 @@ def reset_dir(source_dir, target_dir):
         else:
             if verbose: print(f'  {fn.filename} ok')
 
+# ---
+# delete everything in the target dir, copy everything from the source dir to the target dir
+def reset_dir(source_dir, target_dir):
+    global verbose, debug
+    if debug: print(f'Cleaning {target_dir} from {source_dir}')
+
+    # 2. delete ...
+    clear_dir(target_dir)
+
     # 3. copy the correct set of files to the patron desktop
-    copy_dir(expected_items, target_dir)
+    copy_dir(source_dir, target_dir)
 
     print()
 
