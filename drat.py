@@ -20,7 +20,21 @@ purpose: reset equipment computer desktops in the RFSL
 # https://medium.com/swlh/easy-steps-to-create-an-executable-in-python-using-pyinstaller-cc48393bcc64
 # 
 
-TODO: FIX APPDATA COPY
+TODO: FIX APPDATA COPY: DON'T COPY, but use a separate AppData directory parallel to the template directory
+TODO: cuz the appdata logic should only delete the ones to be replaced
+TODO: and the registry directory contains 0 or more .reg files to be applied
+i.e.:
+drat 
+    templates 
+        userid
+            folders (to check)
+                files and folders to copy into the user folder
+    appdata 
+        userid 
+            app folders to delete from user's appdata and copy in place
+    configs 
+        userid 
+            .reg files to apply with reg 
 
 import platform
 import os
