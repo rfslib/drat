@@ -20,6 +20,7 @@ purpose: reset equipment computer desktops in the RFSL
 # https://medium.com/swlh/easy-steps-to-create-an-executable-in-python-using-pyinstaller-cc48393bcc64
 # 
 
+"""
 TODO: FIX APPDATA COPY: DON'T COPY, but use a separate AppData directory parallel to the template directory
 TODO: cuz the appdata logic should only delete the ones to be replaced
 TODO: and the registry directory contains 0 or more .reg files to be applied
@@ -35,6 +36,18 @@ drat
     configs 
         userid 
             .reg files to apply with reg 
+
+or better:
+drat
+    userid
+        template
+            folders (to check)
+                files and folders to copy into the user folder
+        configs
+            .reg files to apply with reg 
+        appdata
+            app folders to delete from user's appdata and copy in place
+"""
 
 import platform
 import os
@@ -77,7 +90,17 @@ def main(argv):
     # gather the template directory items (directories to be cleaned up)
     template_dirs = scanDir(source_foo, 'd')
 
-    # clean each directory in the template: delete everything in it and copy back from the template
+    processTemplate(template_dirs, target_foo)
+
+    # TODO: registry and AppData files
+
+    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
+            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
+    return()
+
+#---
+# clean each directory in the template: delete everything in it and copy back from the template
+def processTemplate(template_dirs, target_foo):
     for item in template_dirs:
         target_dir = os.path.join(target_foo, item.filename)
         if item.filename.lower() == 'appdata':
@@ -86,14 +109,6 @@ def main(argv):
             clear_dir(target_dir)
             copy_dir(item.path, target_dir)
             ##** reset_dir(item.path, target_dir)
-
-    # TODO: registry and AppData files
-
-    print('\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
-            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
-
-
-    return
 
 #---
 # scan a directory and return a list of items in it (f=file or shortcut, d=directory)
@@ -202,7 +217,7 @@ def reset_dir(source_dir, target_dir):
     # 2. delete ...
     clear_dir(target_dir)
 
-    # 3. copy the correct set of files to the patron desktop
+    # 3. copy the correct set of files to the target directory
     copy_dir(source_dir, target_dir)
 
     print()
