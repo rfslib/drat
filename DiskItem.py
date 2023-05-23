@@ -5,7 +5,7 @@
 from dataclasses import dataclass
 
 @dataclass
-class DeskItem:
+class DiskItem:
     def __init__(self, filename, path, type):
         self.filename = filename
         self.path = path
