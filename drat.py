@@ -77,8 +77,6 @@ class Drat:
             self.target_dir = os.path.join(self.target_base, self.user)
             # and now go...
             self.doIt()
-            print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
-                    'NOTE: click on the desktop and press F5 if folders are not showing as expected')
         else:
             print(f'A template does not exist for the "{self.user}" user. Aborting...')
 
@@ -155,8 +153,8 @@ class Drat:
 if __name__ == '__main__':
     # go do the work
     drat = Drat(sys.argv[1:])
-    #main(sys.argv[1:])
 
-    # give them the chance to empty the recycle bin
-    input('Press ENTER when done . . . . . ')
-    print()
+    # give them a chance to empty the recycle bin
+    print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
+            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
+    input(  'Press ENTER when done . . . . . ')
