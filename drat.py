@@ -39,6 +39,7 @@ import platform
 import os
 import sys
 import getopt
+import time
 
 from DiskItem import DiskItem
 from DiskIO import DiskIO
@@ -63,7 +64,7 @@ class Drat:
     def __init__(self, argv):
         self.process_command_args(argv)
 
-        diskio = DiskIO(self.verbose)
+        self.d = DiskIO(self.verbose)
 
         # 0. show some system information
         self.user = os.getlogin() # get the current username
@@ -74,8 +75,6 @@ class Drat:
         if(os.path.exists(self.source_dir)):
             # template exists, set up folder paths
             self.target_dir = os.path.join(self.target_base, self.user)
-            if self.debug: print(f'Ok, processing stuff in {self.target_dir}')
-            if self.debug: print(f'    getting stuff from {self.source_dir}')
             # and now go...
             self.doIt()
             print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
@@ -91,12 +90,15 @@ class Drat:
 
         # a) process the User folders
         self.process_folders()
+        print()
 
         # b) process the AppData folders
         self.process_appdata()
+        print()
 
         # c) process the .reg files
         self.process_configs
+        print()
 
         return
 
@@ -106,7 +108,7 @@ class Drat:
     #   b: populate them with whatever's in the source template folders
     def process_folders(self):
         # gather the template directory items (directories to be cleaned up)
-        source_folders = self.diskio.scanDir(self.source_dir, 'd')
+        source_folders = self.d.scanDir(self.source_dir, 'd')
         # clean each directory in the template: delete everything in it and copy back from the template
         for folder in source_folders:
             target_folder = os.path.join(self.target_dir, folder.filename)
@@ -115,12 +117,17 @@ class Drat:
             else:
                 if self.debug: print(f'Cleaning {folder.path} from {target_folder}')
                 # a: delete ...
-                self.diskio.clear_dir(target_folder)
-                # b: copy the correct set of files to the target directory
-                self.diskio.copy_dir(folder.path, target_folder)
-                print()
+                self.d.clear_dir(target_folder) # first delete the existing entries in the directory
+                time.sleep(1) # these sleeps are to see if the screen icons will auto-update i
+                                # (currently they disappear and don't re-appear until reboot or F5 on the screen)
+                self.d.copy_dir(folder.path, target_folder) # then copy the correct set of files to the target directory
+                time.sleep(1) # these sleeps seem to help; not sure why
 
     def process_appdata(self):
+        # gather the names of thedirectories to replace in appdata
+        # for each directory name
+            # remove the existing directory in appdata
+            # copy the template directory into appdata
         pass
 
     def process_configs(self):

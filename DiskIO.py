@@ -15,7 +15,6 @@ class DiskIO:
     #---
     # scan a directory and return a list of items in it (f=file or shortcut, d=directory)
     def scanDir(self, dir, type=''):
-        global verbose, debug
         items = []
         for i in os.scandir(dir):
             if (i.is_file() or i.is_symlink()) and (type=='' or type=='f'):
@@ -26,18 +25,12 @@ class DiskIO:
                 items.append(item)
         return(items)
 
-
     # ---
     # delete everything in the target dir
     def clear_dir(self, target_dir):
         # gather the current target directory items
         target_items = self.scanDir(target_dir)
-        target_filenames = []
-        for item in target_items:
-            target_filenames.append(item.filename)
-
-        # 2. delete all files (including shortcuts) in the current directory (except the desktop.ini)
-        # 2a. delete all folders not matching ones in the template
+        # 2. delete all files (including shortcuts) and folders in the current directory (except the desktop.ini)
         print(f'Clearing {target_dir}')
         for fn in target_items:
             #target = target_items[fn].path
@@ -50,7 +43,7 @@ class DiskIO:
                     elif fn.type == 'd': print(f'  {fn.filename} - folder to be deleted')
                 os.system(f'attrib -h "{fn.path}"') # unhide just in case
                 os.chmod(fn.path, stat.S_IWRITE) # remove read-only
-                send2trash(fn.path) ##** os.remove(target)
+                send2trash(fn.path)
             else:
                 if self.verbose: print(f'  {fn.filename} ok')
 
@@ -68,7 +61,7 @@ class DiskIO:
         for fn in expected_items:
             target = os.path.join(target_dir, fn.filename)
             if fn.filename == 'desktop.ini':
-                if (self.verbose): print(f'  {fn.filename} - skipped')
+                if self.verbose: print(f'  {fn.filename} - skipped')
                 pass
             elif fn.type == 'f':
                 if self.verbose: print(f'  {fn.filename} - file to be copied')
