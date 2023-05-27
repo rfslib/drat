@@ -31,12 +31,11 @@ class DiskIO:
         # gather the current target directory items
         target_items = self.scanDir(target_dir)
         # 2. delete all files (including shortcuts) and folders in the current directory (except the desktop.ini)
-        print(f'Clearing {target_dir}')
+        if self.verbose: print(f'Clearing {target_dir}')
         for fn in target_items:
             #target = target_items[fn].path
             if fn.filename == 'desktop.ini':
                 if self.verbose: print(f'  {fn.filename} - skipped')
-                pass
             elif fn.type == 'f' or fn.type == 'd':
                 if self.verbose: 
                     if fn.type == 'f': print(f'  {fn.filename} - file to be deleted')
@@ -54,9 +53,9 @@ class DiskIO:
         print(f'Restoring {target_dir}')
 
         expected_items = self.scanDir(source_dir)
-        expected_filenames = []
-        for item in expected_items:
-            expected_filenames.append(item.filename)
+        #expected_filenames = []
+        #for item in expected_items:
+        #    expected_filenames.append(item.filename)
 
         for fn in expected_items:
             target = os.path.join(target_dir, fn.filename)

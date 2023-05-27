@@ -43,94 +43,91 @@ import time
 
 from DiskItem import DiskItem
 from DiskIO import DiskIO
-from send2trash import send2trash
 
 class Drat:
     debug = False
-    verbose = False # -v on the command line to override
+    verbose = True # -v on the command line to override
     reset_configs = False # -c on the command line to override
 
-    user = ""
-    d = None
-
-    target_base = 'C:\\Users\\'
     source_base = 'C:\\FSC\\drat\\'
-    target_dir = ""
-    source_dir = ""
-    folders_src = "folders\\"
-    appdata_src = "appdata\\"
-    configs_src = "configs\\"
+    target_base_dir = 'C:\\Users\\'
+    appdata_target_add = 'AppData\\Roaming\\'
+    folders_src_dir = "folders\\"
+    appdata_src_dir = "appdata\\"
+    configs_src_dir = "configs\\"
 
     def __init__(self, argv):
         self.process_command_args(argv)
 
-        self.d = DiskIO(self.verbose)
-
         # 0. show some system information
-        self.user = os.getlogin() # get the current username
-        print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{self.user}"\n')
+        user = os.getlogin() # get the current username
+        print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{user}"\n')
 
         # 1. verify that there is a template for this user
-        self.source_dir = os.path.join(self.source_base, self.user, self.folders_src)
-        if(os.path.exists(self.source_dir)):
-            # template exists, set up folder paths
-            self.target_dir = os.path.join(self.target_base, self.user)
-            # and now go...
-            self.doIt()
+        template_dir = os.path.join(self.source_base, user)
+        if(os.path.exists(template_dir) == False):
+            print(f'A template does not exist for the "{user}" user. Aborting...')
         else:
-            print(f'A template does not exist for the "{self.user}" user. Aborting...')
+            # template exists, let's see what's in it
+
+            # standard folders?
+            folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
+            if(os.path.exists(folder_pattern_dir)):
+                if(self.verbose): print('The template has a pattern for standard folders')
+                folder_target_dir = os.path.join(self.target_base_dir, user)
+                self.process_folder_pattern(folder_pattern_dir, folder_target_dir)
+            
+            # appdata folders?
+            appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
+            if(os.path.exists(appdata_pattern_dir)):
+                if(self.verbose): print('The template has a pattern for appdata folders')
+                appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
+                self.process_folder_pattern(appdata_pattern_dir, appdata_target_dir)
+            
+            # registry file?
+            config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
+            if(os.path.exists(config_pattern_dir)):
+                if(self.verbose): print('The template has a config folder for registry files')
+                self.process_reg_files(config_pattern_dir)
+            
+            # done, reminders to the operator:
+            print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
+            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
 
         return
-
-    #---
-    # main starts here
-    def doIt(self):
-
-        # a) process the User folders
-        self.process_folders()
-        print()
-
-        # b) process the AppData folders
-        self.process_appdata()
-        print()
-
-        # c) process the .reg files
-        self.process_configs
-        print()
-
-        return
-
+    
     # ---
-    # for each folder in the template, make the user's folder with the same name match:
-    #   a: delete everything in the matching user's folders and 
-    #   b: populate them with whatever's in the source template folders
-    def process_folders(self):
-        # gather the template directory items (directories to be cleaned up)
-        source_folders = self.d.scanDir(self.source_dir, 'd')
-        # clean each directory in the template: delete everything in it and copy back from the template
+    # 
+    def process_folder_pattern(self, template_dir, target_folders_base):
+        print(f'ok, use {template_dir} to fix {target_folders_base}')
+        diskio = DiskIO(self.verbose)
+        # get a list of the pattern directory items (first-level only)
+        source_folders = diskio.scanDir(template_dir, 'd')
+        # for each directory in the pattern, clear everything the matching user directory
         for folder in source_folders:
-            target_folder = os.path.join(self.target_dir, folder.filename)
-            if folder.filename.lower() == 'appdata': # always skip appdata here, in case it gets added accidentally
-                pass
+            target_folder = os.path.join(target_folders_base, folder.filename)
+            # the AppData folder should NEVER occur at this level, but could be accidentally placed here,
+            #  so avoid catastrophic user error by ignoring it
+            if folder.filename.lower() == 'appdata':
+                print(f'\n>>> ERROR: AppData is in the wrong place: {folder.path}\n')
             else:
-                if self.debug: print(f'Cleaning {folder.path} from {target_folder}')
                 # a: delete ...
-                self.d.clear_dir(target_folder) # first delete the existing entries in the directory
+                if self.verbose: print(f'- moving *everything* in {target_folder} to the Recycle Bin')
+                diskio.clear_dir(target_folder) # first delete the existing entries in the directory
                 time.sleep(1) # these sleeps are to see if the screen icons will auto-update i
                                 # (currently they disappear and don't re-appear until reboot or F5 on the screen)
-                self.d.copy_dir(folder.path, target_folder) # then copy the correct set of files to the target directory
+                if self.verbose: print(f'- copy everything from {folder.path} to {target_folder}')
+                diskio.copy_dir(folder.path, target_folder) # then copy the correct set of files to the target directory
                 time.sleep(1) # these sleeps seem to help; not sure why
+        print()
 
-    def process_appdata(self):
-        # gather the names of thedirectories to replace in appdata
-        # for each directory name
-            # remove the existing directory in appdata
-            # copy the template directory into appdata
-        pass
 
-    def process_configs(self):
-        pass
-
+    # ---
+    #
+    def process_reg_files(self, config_dir):
+        print(f'ok, gonna apply .reg files from {config_dir}')
+        print()
+    
     # ---
     # process the command line and set control variables as needed
     def process_command_args(self, argv):
@@ -155,6 +152,5 @@ if __name__ == '__main__':
     drat = Drat(sys.argv[1:])
 
     # give them a chance to empty the recycle bin
-    print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
-            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
+
     input(  'Press ENTER when done . . . . . ')
