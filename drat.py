@@ -80,14 +80,13 @@ class Drat:
             print(f'A template does not exist for the "{user}" user. Aborting...')
         else:
             # template exists, let's see what's in it
-
             # standard folders?
             if self.clear_user_data:
                 folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
                 if(os.path.exists(folder_pattern_dir)):
                     if self.verbose: print('The template has a pattern for standard folders')
                     folder_target_dir = os.path.join(self.target_base_dir, user)
-                    self.process_folder_pattern(folder_pattern_dir, folder_target_dir, True)
+                    self.process_folder_pattern(folder_pattern_dir, folder_target_dir)
             
             # appdata folders?
             if self.reset_configs:
@@ -95,7 +94,7 @@ class Drat:
                 if os.path.exists(appdata_pattern_dir):
                     if self.verbose: print('The template has a pattern for appdata folders')
                     appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
-                    self.process_folder_pattern(appdata_pattern_dir, appdata_target_dir, False)
+                    self.process_appdata_pattern(appdata_pattern_dir, appdata_target_dir)
                 # registry file?
                 config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
                 if os.path.exists(config_pattern_dir):
@@ -110,7 +109,22 @@ class Drat:
     
     # ---
     # 
-    def process_folder_pattern(self, template_dir, target_folders_base, readonly):
+    def process_appdata_pattern(self, template_dir, target_folders_base):
+        if self.verbose: print(f'ok, use {template_dir} to fix {target_folders_base}')
+        diskio = DiskIO(self.verbose)
+        # get a list of the pattern directory items (first-level only)
+        source_folders = diskio.scanDir(template_dir, 'd')
+        # for each directory in the pattern, clear everything the matching user directory
+        for folder in source_folders:
+            target_folder = os.path.join(target_folders_base, folder.filename)
+            if self.verbose: print(f'- moving *everything* in {target_folder} to the Recycle Bin')
+            diskio.clear_dir(target_folder) # first delete the existing entries in the directory
+            if self.verbose: print(f'- copy everything from {folder.path} to {target_folder}')
+            diskio.copy_dir(folder.path, target_folder, False) # then copy the correct set of files to the target directory
+    
+    # ---
+    # 
+    def process_folder_pattern(self, template_dir, target_folders_base):
         if self.verbose: print(f'ok, use {template_dir} to fix {target_folders_base}')
         diskio = DiskIO(self.verbose)
         # get a list of the pattern directory items (first-level only)
@@ -126,11 +140,13 @@ class Drat:
                 # a: delete ...
                 if self.verbose: print(f'- moving *everything* in {target_folder} to the Recycle Bin')
                 diskio.clear_dir(target_folder) # first delete the existing entries in the directory
-                time.sleep(1) # these sleeps are to see if the screen icons will auto-update i
+                if folder.filename.lower() == 'desktop': 
+                    time.sleep(1) # these sleeps are to see if the screen icons will auto-update i
                                 # (currently they disappear and don't re-appear until reboot or F5 on the screen)
                 if self.verbose: print(f'- copy everything from {folder.path} to {target_folder}')
-                diskio.copy_dir(folder.path, target_folder, readonly) # then copy the correct set of files to the target directory
-                time.sleep(1) # these sleeps seem to help; not sure why
+                diskio.copy_dir(folder.path, target_folder, True) # then copy the correct set of files to the target directory
+                if folder.filename.lower() == 'desktop': 
+                    time.sleep(1) # these sleeps seem to help; not sure why
 
 
     # ---
