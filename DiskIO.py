@@ -15,15 +15,19 @@ class DiskIO:
     #---
     # scan a directory and return a list of items in it (f=file or shortcut, d=directory)
     def scanDir(self, dir, type=''):
-        items = []
-        for i in os.scandir(dir):
-            if (i.is_file() or i.is_symlink()) and (type=='' or type=='f'):
-                item = DiskItem(i.name, i.path, "f")
-                items.append(item)
-            elif i.is_dir() and (type == '' or type == 'd'):
-                item = DiskItem(i.name, i.path, "d")
-                items.append(item)
-        return(items)
+        dir_items = []
+        try:
+            for i in os.scandir(dir):
+                if (i.is_file() or i.is_symlink()) and (type=='' or type=='f'):
+                    item = DiskItem(i.name, i.path, "f")
+                    dir_items.append(item)
+                elif i.is_dir() and (type == '' or type == 'd'):
+                    item = DiskItem(i.name, i.path, "d")
+                    dir_items.append(item)
+        except:
+            print(f'>>> Error: couldn\'t scan {dir}')
+        
+        return dir_items
 
     # ---
     # delete everything in the target dir
@@ -48,9 +52,9 @@ class DiskIO:
 
     # ---
     # copy items from one directory to another
-    def copy_dir(self, source_dir, target_dir):
+    def copy_dir(self, source_dir, target_dir, readonly=False):
 
-        print(f'Restoring {target_dir}')
+        if self.verbose: print(f'Restoring {target_dir}')
 
         expected_items = self.scanDir(source_dir)
         #expected_filenames = []
@@ -65,10 +69,10 @@ class DiskIO:
             elif fn.type == 'f':
                 if self.verbose: print(f'  {fn.filename} - file to be copied')
                 shutil.copy(fn.path, target)
-                os.chmod(target, stat.S_IREAD) # set read-only
+                if readonly: os.chmod(target, stat.S_IREAD) # set read-only
             elif fn.type == 'd':
                 if self.verbose: print(f'  {fn.filename} - folder to be copied')
                 shutil.copytree(fn.path, target)
-                os.chmod(target, stat.S_IREAD) # set read-only
+                if readonly: os.chmod(target, stat.S_IREAD) # set read-only
 
 

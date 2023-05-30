@@ -40,28 +40,39 @@ import os
 import sys
 import getopt
 import time
+import subprocess
 
 from DiskItem import DiskItem
 from DiskIO import DiskIO
 
 class Drat:
     debug = False
-    verbose = True # -v on the command line to override
-    reset_configs = False # -c on the command line to override
+    verbose = False # -v on the command line to override
+    reset_configs = True # -c on the command line to override
+    clear_user_data = True # -u on the command line to override
 
-    source_base = 'C:\\FSC\\drat\\'
-    target_base_dir = 'C:\\Users\\'
-    appdata_target_add = 'AppData\\Roaming\\'
+    source_base = 'C:\\FSC\\drat\\' # where the template files are kept
+
+    target_base_dir = 'C:\\Users\\' # add username to get the target base
     folders_src_dir = "folders\\"
     appdata_src_dir = "appdata\\"
     configs_src_dir = "configs\\"
+    appdata_target_add = 'AppData\\Roaming\\'
 
     def __init__(self, argv):
         self.process_command_args(argv)
 
         # 0. show some system information
         user = os.getlogin() # get the current username
-        print(f'This is computer "{platform.node()}" running {platform.system()} {platform.release()} for user "{user}"\n')
+        print(f'\n'
+              f'oh drat!\n'
+              f'        computer: {platform.node()}\n'
+              f'operating system: {platform.system()} {platform.release()}\n'
+              f'            user: {user}\n'
+              f'         verbose: {self.verbose}\n'
+              f'delete user data: {self.clear_user_data}\n'
+              f'   reset configs: {self.reset_configs}\n'
+            )
 
         # 1. verify that there is a template for this user
         template_dir = os.path.join(self.source_base, user)
@@ -71,35 +82,36 @@ class Drat:
             # template exists, let's see what's in it
 
             # standard folders?
-            folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
-            if(os.path.exists(folder_pattern_dir)):
-                if(self.verbose): print('The template has a pattern for standard folders')
-                folder_target_dir = os.path.join(self.target_base_dir, user)
-                self.process_folder_pattern(folder_pattern_dir, folder_target_dir)
+            if self.clear_user_data:
+                folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
+                if(os.path.exists(folder_pattern_dir)):
+                    if self.verbose: print('The template has a pattern for standard folders')
+                    folder_target_dir = os.path.join(self.target_base_dir, user)
+                    self.process_folder_pattern(folder_pattern_dir, folder_target_dir, True)
             
             # appdata folders?
-            appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
-            if(os.path.exists(appdata_pattern_dir)):
-                if(self.verbose): print('The template has a pattern for appdata folders')
-                appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
-                self.process_folder_pattern(appdata_pattern_dir, appdata_target_dir)
-            
-            # registry file?
-            config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
-            if(os.path.exists(config_pattern_dir)):
-                if(self.verbose): print('The template has a config folder for registry files')
-                self.process_reg_files(config_pattern_dir)
+            if self.reset_configs:
+                appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
+                if os.path.exists(appdata_pattern_dir):
+                    if self.verbose: print('The template has a pattern for appdata folders')
+                    appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
+                    self.process_folder_pattern(appdata_pattern_dir, appdata_target_dir, False)
+                # registry file?
+                config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
+                if os.path.exists(config_pattern_dir):
+                    if self.verbose: print('The template has a config folder for registry files')
+                    self.process_reg_files(config_pattern_dir)
             
             # done, reminders to the operator:
-            print(  '\nREMEMBER TO EMPTY THE RECYCLE BIN!\n'
-            'NOTE: click on the desktop and press F5 if folders are not showing as expected')
+            if self.clear_user_data: print('REMEMBER TO EMPTY THE RECYCLE BIN!')
+            if self.verbose: print('NOTE: click on the desktop and press F5 if folders are not showing as expected')
 
         return
     
     # ---
     # 
-    def process_folder_pattern(self, template_dir, target_folders_base):
-        print(f'ok, use {template_dir} to fix {target_folders_base}')
+    def process_folder_pattern(self, template_dir, target_folders_base, readonly):
+        if self.verbose: print(f'ok, use {template_dir} to fix {target_folders_base}')
         diskio = DiskIO(self.verbose)
         # get a list of the pattern directory items (first-level only)
         source_folders = diskio.scanDir(template_dir, 'd')
@@ -117,17 +129,24 @@ class Drat:
                 time.sleep(1) # these sleeps are to see if the screen icons will auto-update i
                                 # (currently they disappear and don't re-appear until reboot or F5 on the screen)
                 if self.verbose: print(f'- copy everything from {folder.path} to {target_folder}')
-                diskio.copy_dir(folder.path, target_folder) # then copy the correct set of files to the target directory
+                diskio.copy_dir(folder.path, target_folder, readonly) # then copy the correct set of files to the target directory
                 time.sleep(1) # these sleeps seem to help; not sure why
-        print()
 
 
     # ---
     #
     def process_reg_files(self, config_dir):
-        print(f'ok, gonna apply .reg files from {config_dir}')
-        print()
-    
+        if self.verbose: print(f'ok, gonna apply .reg files from {config_dir}')
+        diskio = DiskIO(self.verbose)
+        # get a list of the pattern directory items (first-level only)
+        reg_files = diskio.scanDir(config_dir, 'f')
+        for reg_file in reg_files:
+            try:
+                subprocess.run("reg", "import", reg_file.path)
+            except:
+                print(f'registry load of {reg_file.path} went boom')
+        return                
+
     # ---
     # process the command line and set control variables as needed
     def process_command_args(self, argv):
@@ -136,15 +155,14 @@ class Drat:
         opts, args = getopt.getopt(argv,"hv",[])
         for opt, arg in opts:
             if opt == '-h':
-                print ('drat.py [-v]')
+                print ('drat.py [+v] [-c] [-u]')
                 sys.exit()
-            elif opt == "-v":
-                print('Setting Verbose mode')
+            elif opt == "+v":
                 self.verbose = True
             elif opt == "-c":
-                print('Resetting configuration files')
-                self.reset_configs = True
-        if self.debug: print(f'verbosity: {self.verbose}')
+                self.reset_configs = False
+            elif opt == "-u":
+                self.clear_user_data = False
         return
 
 if __name__ == '__main__':
@@ -153,4 +171,4 @@ if __name__ == '__main__':
 
     # give them a chance to empty the recycle bin
 
-    input(  'Press ENTER when done . . . . . ')
+    input('All done. Press ENTER to close . . . . . ')
