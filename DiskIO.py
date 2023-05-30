@@ -4,6 +4,7 @@ from send2trash import send2trash
 import stat
 import shutil
 
+# https://stackoverflow.com/questions/185936/how-to-delete-the-contents-of-a-folder
 
 class DiskIO:
 
@@ -30,7 +31,7 @@ class DiskIO:
         return dir_items
 
     # ---
-    # delete everything in the target dir
+    # move everything the target dir to the Recycle Bin
     def clear_dir(self, target_dir):
         # gather the current target directory items
         target_items = self.scanDir(target_dir)
@@ -47,6 +48,28 @@ class DiskIO:
                 os.system(f'attrib -h "{fn.path}"') # unhide just in case
                 os.chmod(fn.path, stat.S_IWRITE) # remove read-only
                 send2trash(fn.path)
+            else:
+                if self.verbose: print(f'  {fn.filename} ok')
+
+    # ---
+    # delete everything in the target dir (not to the recycle bin)
+    def delete_dir_content(self, target_dir):
+        # gather the current target directory items
+        target_items = self.scanDir(target_dir)
+        # 2. delete all files (including shortcuts) and folders in the current directory (except the desktop.ini)
+        if self.verbose: print(f'Clearing {target_dir}')
+        for fn in target_items:
+            #target = target_items[fn].path
+            os.system(f'attrib -h "{fn.path}"') # unhide just in case
+            os.chmod(fn.path, stat.S_IWRITE) # remove read-only
+            if fn.filename == 'desktop.ini':
+                if self.verbose: print(f'  {fn.filename} - skipped')
+            elif fn.type == 'f':
+                if self.verbose: print(f'  {fn.filename} - file to be deleted')
+                os.unlink(fn.path)
+            elif fn.type == 'd':
+                if self.verbose: print(f'  {fn.filename} - folder to be deleted')
+                shutil.rmtree(fn.path)
             else:
                 if self.verbose: print(f'  {fn.filename} ok')
 

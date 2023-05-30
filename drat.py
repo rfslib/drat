@@ -41,11 +41,13 @@ import sys
 import getopt
 import time
 import subprocess
+import psutil
 
 from DiskItem import DiskItem
 from DiskIO import DiskIO
 
 class Drat:
+    version = '0.9'
     debug = False
     verbose = False # -v on the command line to override
     reset_configs = True # -c on the command line to override
@@ -59,13 +61,23 @@ class Drat:
     configs_src_dir = "configs\\"
     appdata_target_add = 'AppData\\Roaming\\'
 
+    program_list = {'fastfoto.exe':     'FastFoto', 
+                    'scansmart.exe':    'ScanSmart', 
+                    'escndv.exe':       'Epson Scan', 
+                    'es2launcher.exe':  'Epson Scan 2',
+                    'audacity.exe':     'Audacity',
+                    'czur aura.exe':    'CZUR',
+                    'handbrake.exe':    'HandBrake',
+                    'fsc_autmon.exe':   'foobar',
+                    'system':           'bazqux'}
+
     def __init__(self, argv):
         self.process_command_args(argv)
 
         # 0. show some system information
         user = os.getlogin() # get the current username
         print(f'\n'
-              f'oh drat!\n'
+              f'oh drat!          ({self.version})\n'
               f'        computer: {platform.node()}\n'
               f'operating system: {platform.system()} {platform.release()}\n'
               f'            user: {user}\n'
@@ -92,12 +104,14 @@ class Drat:
             if self.reset_configs:
                 appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
                 if os.path.exists(appdata_pattern_dir):
+                    self.check_running_apps()
                     if self.verbose: print('The template has a pattern for appdata folders')
                     appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
                     self.process_appdata_pattern(appdata_pattern_dir, appdata_target_dir)
                 # registry file?
                 config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
                 if os.path.exists(config_pattern_dir):
+                    self.check_running_apps()
                     if self.verbose: print('The template has a config folder for registry files')
                     self.process_reg_files(config_pattern_dir)
             
@@ -118,7 +132,7 @@ class Drat:
         for folder in source_folders:
             target_folder = os.path.join(target_folders_base, folder.filename)
             if self.verbose: print(f'- moving *everything* in {target_folder} to the Recycle Bin')
-            diskio.clear_dir(target_folder) # first delete the existing entries in the directory
+            diskio.delete_dir_content(target_folder) # first delete the existing entries in the directory
             if self.verbose: print(f'- copy everything from {folder.path} to {target_folder}')
             diskio.copy_dir(folder.path, target_folder, False) # then copy the correct set of files to the target directory
     
@@ -148,6 +162,25 @@ class Drat:
                 if folder.filename.lower() == 'desktop': 
                     time.sleep(1) # these sleeps seem to help; not sure why
 
+    # ---
+    # check if an app is running
+    # check the entire list, since if something is running in the wrong machine that should be noticed
+    def check_running_apps(self):
+        all_clear = False
+        while not all_clear:
+            all_clear = True
+            for proc in psutil.process_iter():
+                try:
+                    foo = proc.name.lower()
+                    if proc.name.lower() in self.program_list:
+                        print(f'>> the {self.program_list[proc.name.lower()]} is running')
+                        all_clear = False
+                except:
+                    pass
+            if not all_clear:
+                print(f'>> The above program must be close so configuration can be reset')
+                input('>> Press ENTER when they are closed')
+        return
 
     # ---
     #
@@ -158,8 +191,8 @@ class Drat:
         reg_files = diskio.scanDir(config_dir, 'f')
         for reg_file in reg_files:
             try:
-                subprocess.run("reg", "import", reg_file.path)
-            except:
+                subprocess.run(["reg", "import", reg_file.path], check=True)
+            except Exception as err:
                 print(f'registry load of {reg_file.path} went boom')
         return                
 
