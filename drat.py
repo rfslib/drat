@@ -152,17 +152,19 @@ class Drat:
     def process_command_args(self, argv):
         if self.debug: print('Number of arguments:', len(argv), 'arguments.')
         if self.debug: print('Argument List:', str(argv))
-        opts, args = getopt.getopt(argv,"hv",[])
+        opts, args = getopt.getopt(argv, "hvcu", [])
         for opt, arg in opts:
             if opt == '-h':
-                print ('drat.py [+v] [-c] [-u]')
+                print ('drat.py [-u] [-c] [-v]')
                 sys.exit()
-            elif opt == "+v":
+            elif opt == '-v':
                 self.verbose = True
-            elif opt == "-c":
+            elif opt == '-c':
                 self.reset_configs = False
-            elif opt == "-u":
+            elif opt == '-u':
                 self.clear_user_data = False
+            else:
+                print(f'option {opt} not recognized')
         return
 
 if __name__ == '__main__':
