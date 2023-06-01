@@ -68,8 +68,7 @@ class Drat:
                     'audacity.exe':     'Audacity',
                     'czur aura.exe':    'CZUR',
                     'handbrake.exe':    'HandBrake',
-                    'fsc_autmon.exe':   'foobar',
-                    'system':           'bazqux'}
+                    'paintstudio.view.exe': 'Paint 3D'}
 
     def __init__(self, argv):
         self.process_command_args(argv)
@@ -77,13 +76,13 @@ class Drat:
         # 0. show some system information
         user = os.getlogin() # get the current username
         print(f'\n'
-              f'oh drat!          ({self.version})\n'
-              f'        computer: {platform.node()}\n'
-              f'operating system: {platform.system()} {platform.release()}\n'
-              f'            user: {user}\n'
-              f'         verbose: {self.verbose}\n'
-              f'delete user data: {self.clear_user_data}\n'
-              f'   reset configs: {self.reset_configs}\n'
+              f'oh drat!            ({self.version})\n'
+              f'     computer name: {platform.node()}\n'
+              f'  operating system: {platform.system()} {platform.release()}\n'
+              f'              user: {user}\n'
+              f'           verbose: {self.verbose}\n'
+              f'  delete user data: {self.clear_user_data}\n'
+              f'     reset configs: {self.reset_configs}\n'
             )
 
         # 1. verify that there is a template for this user
@@ -94,8 +93,10 @@ class Drat:
             # template exists, let's see what's in it
             # standard folders?
             if self.clear_user_data:
+                
                 folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
                 if(os.path.exists(folder_pattern_dir)):
+                    print('- moving user data to the Recycle Bin')
                     if self.verbose: print('The template has a pattern for standard folders')
                     folder_target_dir = os.path.join(self.target_base_dir, user)
                     self.process_folder_pattern(folder_pattern_dir, folder_target_dir)
@@ -104,6 +105,7 @@ class Drat:
             if self.reset_configs:
                 appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
                 if os.path.exists(appdata_pattern_dir):
+                    print('- resetting program configurations stage 1')
                     self.check_running_apps()
                     if self.verbose: print('The template has a pattern for appdata folders')
                     appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
@@ -111,11 +113,13 @@ class Drat:
                 # registry file?
                 config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
                 if os.path.exists(config_pattern_dir):
+                    print('- resetting program configurations stage 2')
                     self.check_running_apps()
                     if self.verbose: print('The template has a config folder for registry files')
                     self.process_reg_files(config_pattern_dir)
             
             # done, reminders to the operator:
+            print()
             if self.clear_user_data: print('REMEMBER TO EMPTY THE RECYCLE BIN!')
             if self.verbose: print('NOTE: click on the desktop and press F5 if folders are not showing as expected')
 
@@ -164,22 +168,24 @@ class Drat:
 
     # ---
     # check if an app is running
-    # check the entire list, since if something is running in the wrong machine that should be noticed
+    # check the entire list of apps that are used, since 
+    #   if something is running in the wrong machine that should be noticed as well
     def check_running_apps(self):
         all_clear = False
         while not all_clear:
             all_clear = True
             for proc in psutil.process_iter():
+                proc_name = proc.name().lower()
                 try:
-                    foo = proc.name.lower()
-                    if proc.name.lower() in self.program_list:
-                        print(f'>> the {self.program_list[proc.name.lower()]} is running')
+                    if proc_name in self.program_list:
+                        print(f'>> the {self.program_list[proc_name]} program is running')
                         all_clear = False
-                except:
-                    pass
+                except: # Exception as err:
+                    pass # print(err)
             if not all_clear:
-                print(f'>> The above program must be close so configuration can be reset')
-                input('>> Press ENTER when they are closed')
+                print(f'>> The above program(s) must be closed so configurations can be reset')
+                input('>> Press ENTER when they are closed . . . ')
+                print()
         return
 
     # ---
