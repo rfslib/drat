@@ -228,4 +228,7 @@ if __name__ == '__main__':
 
     # give them a chance to empty the recycle bin
 
-    input('All done. Press ENTER to close . . . . . ')
+    intext = input('All done. Press ENTER to close . . . . . ')
+    if intext == 'rr':
+        os.system('shutdown /r /t 1')
+        
