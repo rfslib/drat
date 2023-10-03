@@ -230,5 +230,6 @@ if __name__ == '__main__':
 
     intext = input('All done. Press ENTER to close . . . . . ')
     if intext == 'r':
-        os.system('shutdown /r /t 1')
+        print('Restarting . . .')
+        os.system('shutdown /r /t 3 /c "drat restart"')
         
