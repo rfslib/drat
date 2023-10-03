@@ -47,7 +47,7 @@ from DiskItem import DiskItem
 from DiskIO import DiskIO
 
 class Drat:
-    version = '20230829'
+    version = '20231003'
     debug = False
     verbose = False # -v on the command line to override
     reset_configs = True # -c on the command line to override
