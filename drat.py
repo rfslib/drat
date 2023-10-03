@@ -47,7 +47,7 @@ from DiskItem import DiskItem
 from DiskIO import DiskIO
 
 class Drat:
-    version = '0.9'
+    version = '20230829'
     debug = False
     verbose = False # -v on the command line to override
     reset_configs = True # -c on the command line to override
@@ -229,6 +229,6 @@ if __name__ == '__main__':
     # give them a chance to empty the recycle bin
 
     intext = input('All done. Press ENTER to close . . . . . ')
-    if intext == 'rr':
+    if intext == 'r':
         os.system('shutdown /r /t 1')
         
