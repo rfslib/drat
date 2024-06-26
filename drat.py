@@ -201,8 +201,10 @@ class Drat:
                 except: # Exception as err:
                     pass # print(err)
             if not all_clear:
-                print(f'>> All Windows of the above program(s) must be closed so configurations can be reset!')
-                print(f'>> Close all other applications as well to expedite the reset process.')
+                print('>> All Windows of the above program(s) must be closed so configurations can be reset!\n'
+                      '>> Close all other applications as well to expedite the reset process.\n'
+                      '>> If programs still show open after being closed you may need to reboot and re-run drat.')
+
                 input('>> Press ENTER when they are closed . . . ')
                 print()
         return

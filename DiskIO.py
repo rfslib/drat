@@ -26,7 +26,7 @@ class DiskIO:
                     item = DiskItem(i.name, i.path, "d")
                     dir_items.append(item)
         except OSError as error:
-            print(f'  diskio.scanDir: {error}'
+            print(f'ERROR: diskio.scanDir: {error}'
                           '\ncontinuing . . .')
         
         return dir_items
@@ -52,7 +52,7 @@ class DiskIO:
                     os.chmod(fn.path, stat.S_IWRITE) # remove read-only
                     send2trash(fn.path)
                 except OSError as error:
-                    print(f'  diskio.clear_dir: {error}'
+                    print(f'ERROR: diskio.clear_dir: {error}'
                           '\ncontinuing . . .')
             else:
                 if self.verbose: print(f'  {fn.filename} ok')
@@ -80,7 +80,7 @@ class DiskIO:
                 else:
                     if self.verbose: print(f'  {fn.filename} ok')
             except OSError as error:
-                print(f'  diskio.delete_dir_content: {error}'
+                print(f'ERROR: diskio.delete_dir_content: {error}'
                         '\ncontinuing . . .')
 
     # ---
@@ -109,7 +109,7 @@ class DiskIO:
                     shutil.copytree(fn.path, target)
                     if readonly: os.chmod(target, stat.S_IREAD) # set read-only
             except OSError as error:
-                print(f'  {fn.path} - {error}'
+                print(f'ERROR: {fn.path} - {error}'
                         'continuing . . .')
 
 
