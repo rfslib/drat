@@ -9,11 +9,11 @@ purpose: reset equipment computer desktops in the RFSL
     2a. delete all folders not matching ones in the template
     3. copy the correct set of files to the patron desktop
     4. if requested, delete all files in all folders on the desktop
-    5. TODO: clear content of directories listed in the folders template
-    6. TODO: copy content of directories list in the folders template
-    7. TODO: delete appdata directories listed in the appdata template
-    8. TODO: copy appdata directories listed in the appdata template
-    9. TODO: load the registry with default values for the apps, and copy AppData config files
+    5. clear content of directories listed in the folders template
+    6. copy content of directories list in the folders template
+    7. delete appdata directories listed in the appdata template
+    8. copy appdata directories listed in the appdata template
+    9. load the registry with default values for the apps, and copy AppData config files
     z. log what was done
 '''
 
@@ -43,12 +43,12 @@ import time
 import subprocess
 import psutil
 
-from DiskItem import DiskItem
-from DiskIO import DiskIO
+from diskItem import DiskItem
+from diskio import DiskIO
 
 class Drat:
-    version = '20231003'
-    debug = False
+    version = '20240626'
+    debug = False # -d on the command line to set True
     verbose = False # -v on the command line to override
     reset_configs = True # -c on the command line to override
     clear_user_data = True # -u on the command line to override
@@ -56,9 +56,9 @@ class Drat:
     source_base = 'C:\\FSC\\drat\\' # where the template files are kept
 
     target_base_dir = 'C:\\Users\\' # add username to get the target base
-    folders_src_dir = "folders\\"
-    appdata_src_dir = "appdata\\"
-    configs_src_dir = "configs\\"
+    folders_src_dir = 'folders\\'
+    appdata_src_dir = 'appdata\\'
+    configs_src_dir = 'configs\\'
     appdata_target_add = 'AppData\\Roaming\\'
 
     program_list = {'fastfoto.exe':     'FastFoto', 
@@ -68,59 +68,75 @@ class Drat:
                     'audacity.exe':     'Audacity',
                     'czur aura.exe':    'CZUR',
                     'handbrake.exe':    'HandBrake',
-                    'paintstudio.view.exe': 'Paint 3D'}
+                    'paintstudio.view.exe': 'Paint 3D',
+                    #'explorer.exe':     'File Explorer', # 20240526: cuz it may be blocking file/dir removal
+                    #  ah, but explorer.exe continues to run even after all windows are closed :P
+                    }
 
     def __init__(self, argv):
         self.process_command_args(argv)
 
+        self.fatal_error = False
+
         # 0. show some system information
         user = os.getlogin() # get the current username
         print(f'\n'
-              f'oh drat!            ({self.version})\n'
+              f'oh drat!            version {self.version}\n'
               f'     computer name: {platform.node()}\n'
               f'  operating system: {platform.system()} {platform.release()}\n'
-              f'              user: {user}\n'
+              f'        login name: {user}\n'
               f'           verbose: {self.verbose}\n'
               f'  delete user data: {self.clear_user_data}\n'
               f'     reset configs: {self.reset_configs}\n'
             )
 
-        # 1. verify that there is a template for this user
+        # 1. verify that there is a template for this user, and process it if so
         template_dir = os.path.join(self.source_base, user)
         if(os.path.exists(template_dir) == False):
-            print(f'A template does not exist for the "{user}" user. Aborting...')
+            print(f'ERROR: A template does not exist for the "{user}" ({template_dir}) user. Aborting...')
+            self.fatal_error = True
         else:
-            # template exists, let's see what's in it
+            # template exists
+            # get all apps cleared
+            self.check_running_apps()
             # standard folders?
             if self.clear_user_data:
-                
                 folder_pattern_dir = os.path.join(template_dir, self.folders_src_dir)
                 if(os.path.exists(folder_pattern_dir)):
+                    if self.verbose: print('- The template has a pattern for standard folders')
                     print('- moving user data to the Recycle Bin')
-                    if self.verbose: print('The template has a pattern for standard folders')
                     folder_target_dir = os.path.join(self.target_base_dir, user)
                     self.process_folder_pattern(folder_pattern_dir, folder_target_dir)
+                else:
+                    print('No user template directory provided')
             
-            # appdata folders?
+            # reset configuration?
+            
             if self.reset_configs:
                 appdata_pattern_dir = os.path.join(template_dir, self.appdata_src_dir)
+                # appdata folders?
                 if os.path.exists(appdata_pattern_dir):
+                    if self.verbose: print('- The template has a pattern for appdata folders')
                     print('- resetting program configurations stage 1')
-                    self.check_running_apps()
-                    if self.verbose: print('The template has a pattern for appdata folders')
                     appdata_target_dir = os.path.join(self.target_base_dir, user, self.appdata_target_add)
                     self.process_appdata_pattern(appdata_pattern_dir, appdata_target_dir)
-                # registry file?
+                else:
+                    print('No appdata template directory provided')
+                # registry files?
                 config_pattern_dir = os.path.join(template_dir, self.configs_src_dir)
                 if os.path.exists(config_pattern_dir):
+                    if self.verbose: print('- The template has a config folder for registry files')
                     print('- resetting program configurations stage 2')
-                    self.check_running_apps()
-                    if self.verbose: print('The template has a config folder for registry files')
                     self.process_reg_files(config_pattern_dir)
+                else:
+                        print('No registry template directory provided')
             
             # done, reminders to the operator:
             print()
-            if self.clear_user_data: print('REMEMBER TO EMPTY THE RECYCLE BIN!')
+            if self.clear_user_data: 
+                print('REMEMBER TO EMPTY THE RECYCLE BIN (unless a patron needs to copy data)!\n'
+                      '(Right-click on the Recycle Bin icon and choose "Empty Recycle Bin")\n'
+                      '')
             if self.verbose: print('NOTE: click on the desktop and press F5 if folders are not showing as expected')
 
         return
@@ -175,27 +191,31 @@ class Drat:
         while not all_clear:
             all_clear = True
             for proc in psutil.process_iter():
+                #print(f'{proc.name()} is {proc.status()}') #, proc.pid)
                 proc_name = proc.name().lower()
+                proc_status = proc.status().lower()
                 try:
-                    if proc_name in self.program_list:
+                    if proc_name in self.program_list and proc_status == 'running':
                         print(f'>> the {self.program_list[proc_name]} program is running')
                         all_clear = False
                 except: # Exception as err:
                     pass # print(err)
             if not all_clear:
-                print(f'>> The above program(s) must be closed so configurations can be reset')
+                print(f'>> All Windows of the above program(s) must be closed so configurations can be reset!')
+                print(f'>> Close all other applications as well to expedite the reset process.')
                 input('>> Press ENTER when they are closed . . . ')
                 print()
         return
 
     # ---
-    #
+    # apply registry config files to the active registry
     def process_reg_files(self, config_dir):
         if self.verbose: print(f'ok, gonna apply .reg files from {config_dir}')
         diskio = DiskIO(self.verbose)
         # get a list of the pattern directory items (first-level only)
         reg_files = diskio.scanDir(config_dir, 'f')
         for reg_file in reg_files:
+            if self.debug: print(f'process_reg_files: {reg_file}')
             try:
                 subprocess.run(["reg", "import", reg_file.path], check=True)
             except Exception as err:
@@ -205,12 +225,23 @@ class Drat:
     # ---
     # process the command line and set control variables as needed
     def process_command_args(self, argv):
-        if self.debug: print('Number of arguments:', len(argv), 'arguments.')
-        if self.debug: print('Argument List:', str(argv))
-        opts, args = getopt.getopt(argv, "hvcu", [])
+        usage = 'usage: drat.py [-u] [-c] [-v]\n' \
+                '       -u  do NOT clear patron data\n' \
+                '       -c  do NOT reset app configurations\n' \
+                '       -v  verbose output\n'
+
+        try:
+            opts, args = getopt.getopt(argv, "hvcud", [])
+        except getopt.GetoptError as error:
+            print(f'\nERROR: {error}\n')
+            print (usage)
+            input('Press ENTER to close . . .')
+            sys.exit()
+
         for opt, arg in opts:
             if opt == '-h':
-                print ('drat.py [-u] [-c] [-v]')
+                print(usage)
+                input('Press ENTER to close . . .')
                 sys.exit()
             elif opt == '-v':
                 self.verbose = True
@@ -218,6 +249,8 @@ class Drat:
                 self.reset_configs = False
             elif opt == '-u':
                 self.clear_user_data = False
+            elif opt == '-d':
+                self.debug = True
             else:
                 print(f'option {opt} not recognized')
         return
@@ -226,10 +259,13 @@ if __name__ == '__main__':
     # go do the work
     drat = Drat(sys.argv[1:])
 
-    # give them a chance to empty the recycle bin
-
-    intext = input('All done. Press ENTER to close . . . . . ')
-    if intext == 'r':
-        print('Restarting . . .')
-        os.system('shutdown /r /t 3 /c "drat restart"')
+    if drat.fatal_error:
+        print('ERROR: create an incident log with full text of the error above')
+        intext = input('Press ENTER to close . . .')
+    else:
+        # give them a chance to empty the recycle bin
+        intext = input('All done. Press ENTER to close . . . . . ')
+        if intext == 'r':
+            print('Restarting . . .')
+            os.system('shutdown /r /t 3 /c "drat restart"')
         

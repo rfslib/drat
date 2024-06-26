@@ -1,5 +1,5 @@
 import os
-from DiskItem import DiskItem
+from diskItem import DiskItem
 from send2trash import send2trash
 import stat
 import shutil
@@ -25,8 +25,9 @@ class DiskIO:
                 elif i.is_dir() and (type == '' or type == 'd'):
                     item = DiskItem(i.name, i.path, "d")
                     dir_items.append(item)
-        except:
-            print(f'>>> Error: couldn\'t scan {dir}')
+        except OSError as error:
+            print(f'  diskio.scanDir: {error}'
+                          '\ncontinuing . . .')
         
         return dir_items
 
@@ -45,9 +46,14 @@ class DiskIO:
                 if self.verbose: 
                     if fn.type == 'f': print(f'  {fn.filename} - file to be deleted')
                     elif fn.type == 'd': print(f'  {fn.filename} - folder to be deleted')
-                os.system(f'attrib -h "{fn.path}"') # unhide just in case
-                os.chmod(fn.path, stat.S_IWRITE) # remove read-only
-                send2trash(fn.path)
+
+                try:
+                    os.system(f'attrib -h "{fn.path}"') # unhide just in case
+                    os.chmod(fn.path, stat.S_IWRITE) # remove read-only
+                    send2trash(fn.path)
+                except OSError as error:
+                    print(f'  diskio.clear_dir: {error}'
+                          '\ncontinuing . . .')
             else:
                 if self.verbose: print(f'  {fn.filename} ok')
 
@@ -62,16 +68,20 @@ class DiskIO:
             #target = target_items[fn].path
             os.system(f'attrib -h "{fn.path}"') # unhide just in case
             os.chmod(fn.path, stat.S_IWRITE) # remove read-only
-            if fn.filename == 'desktop.ini':
-                if self.verbose: print(f'  {fn.filename} - skipped')
-            elif fn.type == 'f':
-                if self.verbose: print(f'  {fn.filename} - file to be deleted')
-                os.unlink(fn.path)
-            elif fn.type == 'd':
-                if self.verbose: print(f'  {fn.filename} - folder to be deleted')
-                shutil.rmtree(fn.path)
-            else:
-                if self.verbose: print(f'  {fn.filename} ok')
+            try:
+                if fn.filename == 'desktop.ini':
+                    if self.verbose: print(f'  {fn.filename} - skipped')
+                elif fn.type == 'f':
+                    if self.verbose: print(f'  {fn.filename} - file to be deleted')
+                    os.unlink(fn.path)
+                elif fn.type == 'd':
+                    if self.verbose: print(f'  {fn.filename} - folder to be deleted')
+                    shutil.rmtree(fn.path)
+                else:
+                    if self.verbose: print(f'  {fn.filename} ok')
+            except OSError as error:
+                print(f'  diskio.delete_dir_content: {error}'
+                        '\ncontinuing . . .')
 
     # ---
     # copy items from one directory to another
@@ -86,16 +96,20 @@ class DiskIO:
 
         for fn in expected_items:
             target = os.path.join(target_dir, fn.filename)
-            if fn.filename == 'desktop.ini':
-                if self.verbose: print(f'  {fn.filename} - skipped')
-                pass
-            elif fn.type == 'f':
-                if self.verbose: print(f'  {fn.filename} - file to be copied')
-                shutil.copy(fn.path, target)
-                if readonly: os.chmod(target, stat.S_IREAD) # set read-only
-            elif fn.type == 'd':
-                if self.verbose: print(f'  {fn.filename} - folder to be copied')
-                shutil.copytree(fn.path, target)
-                if readonly: os.chmod(target, stat.S_IREAD) # set read-only
+            try:
+                if fn.filename == 'desktop.ini':
+                    if self.verbose: print(f'  {fn.filename} - skipped')
+                    pass
+                elif fn.type == 'f':
+                    if self.verbose: print(f'  {fn.filename} - file to be copied')
+                    shutil.copy(fn.path, target)
+                    if readonly: os.chmod(target, stat.S_IREAD) # set read-only
+                elif fn.type == 'd':
+                    if self.verbose: print(f'  {fn.filename} - folder to be copied')
+                    shutil.copytree(fn.path, target)
+                    if readonly: os.chmod(target, stat.S_IREAD) # set read-only
+            except OSError as error:
+                print(f'  {fn.path} - {error}'
+                        'continuing . . .')
 
 
