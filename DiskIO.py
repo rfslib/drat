@@ -1,5 +1,5 @@
 import os
-from diskItem import DiskItem
+from diskitem import DiskItem
 from send2trash import send2trash
 import stat
 import shutil

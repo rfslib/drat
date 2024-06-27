@@ -43,11 +43,11 @@ import time
 import subprocess
 import psutil
 
-from diskItem import DiskItem
+#from diskitem import DiskItem
 from diskio import DiskIO
 
 class Drat:
-    version = '20240626'
+    version = '20240627'
     debug = False # -d on the command line to set True
     verbose = False # -v on the command line to override
     reset_configs = True # -c on the command line to override
